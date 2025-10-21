@@ -1,19 +1,38 @@
-import Cookies from "js-cookie";
+import { useEffect, useState } from "react";
+import { getAuthCookie, setAuthCookie, clearAuthCookie } from "@/utils/auth";
 
 export function useAuth() {
-  const isAuthenticated = !!Cookies.get("authToken");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [user, setUser] = useState<string | null>(null);
 
-  const login = (email: string, password: string) => {
+  useEffect(() => {
+    const auth = getAuthCookie();
+    if (auth) {
+      setIsAuthenticated(true);
+      setUser(auth.user);
+    } else {
+      setIsAuthenticated(false);
+    }
+  }, []);
+
+  // ✅ Adiciona a função de login
+  function login(email: string, password: string) {
+    // exemplo simples, substitua pela sua lógica real
     if (email === "admin@barber.com" && password === "123456") {
-      Cookies.set("authToken", "fake_token_123", { expires: 1 }); // 1 dia
+      const payload = { user: email, token: "fake-token" };
+      setAuthCookie(payload);
+      setIsAuthenticated(true);
+      setUser(email);
       return true;
     }
     return false;
-  };
+  }
 
-  const logout = () => {
-    Cookies.remove("authToken");
-  };
+  function logout() {
+    clearAuthCookie();
+    setIsAuthenticated(false);
+    setUser(null);
+  }
 
-  return { isAuthenticated, login, logout };
+  return { isAuthenticated, user, login, logout };
 }

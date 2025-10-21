@@ -1,9 +1,9 @@
-"use client";
-
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getPlans, createPlan } from "@/services/plansService";
 
 export const Plans = () => {
   const [showModal, setShowModal] = useState(false);
@@ -15,23 +15,102 @@ export const Plans = () => {
     []
   );
 
+  const queryClient = useQueryClient();
+
   const handleAddService = () => {
-    if (serviceName.trim() === "" || serviceLimit.trim() === "") return;
-    setServices([...services, { name: serviceName, limit: serviceLimit }]);
+    if (!serviceName.trim() || !serviceLimit.trim()) return;
+    setServices((prev) => [
+      ...prev,
+      { name: serviceName, limit: serviceLimit },
+    ]);
     setServiceName("");
     setServiceLimit("");
   };
 
-  const handleSavePlan = () => {
-    console.log("Novo plano criado:", {
-      planName,
-      price,
-      services,
-    });
-    setShowModal(false);
-    setPlanName("");
-    setPrice("");
-    setServices([]);
+  const handleSavePlan = async () => {
+    try {
+      await createPlan({
+        nome: planName,
+        preco: price,
+        servicos: services.map((s) => ({
+          nome: s.name,
+          limite: Number(s.limit), // converte string para number
+        })),
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["planos"] });
+
+      setShowModal(false);
+      setPlanName("");
+      setPrice("");
+      setServices([]);
+    } catch (err) {
+      console.error("Erro ao criar plano:", err);
+      alert("Erro ao criar plano. Verifique os dados e tente novamente.");
+    }
+  };
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["planos"],
+    queryFn: getPlans,
+  });
+
+  const plansArray = data ? Object.values(data) : [];
+
+  const renderContent = () => {
+    if (isLoading)
+      return (
+        <div className="text-center text-gray-500 dark:text-gray-400 py-20">
+          Carregando planos...
+        </div>
+      );
+    if (isError)
+      return (
+        <div className="text-center text-red-500 py-20">
+          Erro ao carregar os planos. Tente novamente.
+        </div>
+      );
+    if (!plansArray.length)
+      return (
+        <div className="text-gray-500 dark:text-gray-400 text-center py-20">
+          Nenhum plano cadastrado ainda.
+          <br />
+          <span className="text-sm">
+            Clique em{" "}
+            <span className="font-medium text-blue-600">“Novo Plano”</span> para
+            adicionar um.
+          </span>
+        </div>
+      );
+
+    return (
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {plansArray.map((plan: any, i) => (
+          <li
+            key={i}
+            className="border border-gray-200 dark:border-gray-700 rounded-2xl p-5 bg-gray-50 dark:bg-gray-900 shadow-sm"
+          >
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
+              {plan.nome}
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-3">
+              R$ {Number(plan.preco).toFixed(2)}
+            </p>
+
+            {plan.servicos?.length > 0 && (
+              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                {plan.servicos.map((srv: any) => (
+                  <li key={srv.id} className="flex justify-between">
+                    <span>{srv.nome}</span>
+                    <span className="text-gray-500">{srv.limite}/m</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    );
   };
 
   return (
@@ -52,8 +131,7 @@ export const Plans = () => {
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all"
           onClick={() => setShowModal(true)}
         >
-          <Plus className="w-4 h-4" />
-          Novo Plano
+          <Plus className="w-4 h-4" /> Novo Plano
         </Button>
       </header>
 
@@ -66,9 +144,6 @@ export const Plans = () => {
             </h2>
 
             {/* Detalhes do Plano */}
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Detalhes do Plano
-            </h3>
             <div className="flex flex-col gap-3 mb-4">
               <Input
                 placeholder="Nome do Plano"
@@ -82,10 +157,7 @@ export const Plans = () => {
               />
             </div>
 
-            {/* Serviços Inclusos */}
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Serviços Inclusos
-            </h3>
+            {/* Serviços */}
             <div className="flex items-center gap-2 mb-3">
               <Input
                 placeholder="Nome do Serviço"
@@ -108,7 +180,6 @@ export const Plans = () => {
               </Button>
             </div>
 
-            {/* Lista de serviços adicionados */}
             {services.length > 0 && (
               <ul className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-3 space-y-2">
                 {services.map((s, i) => (
@@ -123,7 +194,6 @@ export const Plans = () => {
               </ul>
             )}
 
-            {/* BOTÕES */}
             <div className="flex justify-end gap-2 mt-6">
               <Button variant="outline" onClick={() => setShowModal(false)}>
                 Cancelar
@@ -141,15 +211,7 @@ export const Plans = () => {
 
       {/* CONTEÚDO PRINCIPAL */}
       <section className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm p-6 min-h-[400px] transition-colors">
-        <div className="text-gray-500 dark:text-gray-400 text-center py-20">
-          Nenhum plano cadastrado ainda.
-          <br />
-          <span className="text-sm">
-            Clique em{" "}
-            <span className="font-medium text-blue-600">“Novo Plano”</span> para
-            adicionar um.
-          </span>
-        </div>
+        {renderContent()}
       </section>
     </div>
   );

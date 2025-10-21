@@ -7,27 +7,27 @@ export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [isPending, _] = useTransition();
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    startTransition(async () => {
-      try {
-        const success = await login(email, password);
-        if (success) {
-          navigate("/"); // navega para a home
-        } else {
-          setError("Credenciais inválidas!");
-        }
-      } catch {
-        setError("Ocorreu um erro. Tente novamente.");
+    try {
+      const success = await login(email, password);
+      if (success) {
+        console.log("✅ Login sucesso");
+        navigate("/");
+      } else {
+        setError("Credenciais inválidas!");
       }
-    });
+    } catch (err) {
+      console.error(err);
+      setError("Erro inesperado.");
+    }
   };
 
   return (
