@@ -11,9 +11,21 @@ import {
   SelectValue,
 } from "../ui/select";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getPlans } from "@/services/plansService";
 
 export default function ClientPage() {
   const [showModal, setShowModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any | null>(null);
+  const [nameClient, setNameClient] = useState("");
+  const [phoneClient, setPhoneClient] = useState("");
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["planos"],
+    queryFn: getPlans,
+  });
+
+  const plansArray = data ? Object.values(data) : [];
 
   return (
     <div className="w-full">
@@ -48,22 +60,50 @@ export default function ClientPage() {
             </h2>
 
             <div className="grid gap-4 py-2 w-full">
-              <Input placeholder="Nome completo" />
-              <Input type="phone" placeholder="Celular" />
-              <Select>
+              <Input
+                placeholder="Nome completo"
+                value={nameClient}
+                onChange={(e) => setNameClient(e.target.value)}
+              />
+              <Input
+                type="phone"
+                placeholder="Celular"
+                value={phoneClient}
+                onChange={(e) => setPhoneClient(e.target.value)}
+              />
+              <Select
+                onValueChange={(value) => {
+                  // busca o plano pelo nome selecionado
+                  const plan = plansArray.find((p: any) => p.nome === value);
+                  setSelectedPlan(plan ?? null);
+                }}
+              >
+                {" "}
                 <SelectTrigger className="w-full border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-blue-500">
                   <SelectValue placeholder="Plano" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border border-gray-700 rounded-md shadow-lg">
-                  <SelectItem value="basico" className="text-white">
-                    Básico
-                  </SelectItem>
-                  <SelectItem value="premium" className="text-white">
-                    Premium
-                  </SelectItem>
-                  <SelectItem value="vip" className="text-white">
-                    VIP
-                  </SelectItem>
+                  {isLoading && (
+                    <SelectItem value="loading" className="text-white">
+                      Carregando...
+                    </SelectItem>
+                  )}
+                  {isError && (
+                    <SelectItem value="error" className="text-white">
+                      Erro ao carregar
+                    </SelectItem>
+                  )}
+                  {!isLoading &&
+                    !isError &&
+                    plansArray.map((plan: any, i) => (
+                      <SelectItem
+                        key={i}
+                        value={plan.nome}
+                        className="text-white"
+                      >
+                        {plan.nome} - R$ {plan.preco}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -73,9 +113,16 @@ export default function ClientPage() {
                 Cancelar
               </Button>
               <Button
-                onClick={() => setShowModal(false)}
-                variant="default"
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all"
+                onClick={() => {
+                  console.log("Cliente criado:", {
+                    nome: nameClient,
+                    telefone: phoneClient,
+                    plano: selectedPlan?.nome,
+                    preco: selectedPlan?.preco,
+                    servicos: selectedPlan?.servicos, 
+                  });
+                  setShowModal(false);
+                }}
               >
                 Salvar Cliente
               </Button>
